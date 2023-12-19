@@ -2,12 +2,24 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const users = require('./sample-data').users;
-const messages = require('./sample-data').messages;
+const uuidv4 = require('uuid').v4;
+
+let users = require('./sample-data').users;
+let messages = require('./sample-data').messages;
 
 // Run express
 const app = express();
+
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
 app.use(cors());
+
+// Create middleware for identifying user
+app.use((req, res, next) => {
+  req.me = users[1];
+  next();
+});
 
 //// HOME ROUTES ////
 app.get('/', (req, res) => {
@@ -44,8 +56,38 @@ app.get('/messages', (req, res) => {
   res.send(Object.entries(messages));
 });
 
+app.post('/messages', (req, res) => {
+  const id = uuidv4();
+  const message = {
+    id,
+    text: req.body.text,
+    userId: req.me.id,
+  };
+
+  messages[id] = message;
+
+  return res.send(message);
+});
+
 app.get('/messages/:id', (req, res) => {
-  res.send(messages[req.params.id]);
+  res.statusCode = 200;
+  return res.send(messages[req.params.id]);
+});
+
+app.delete('/messages/:id', (req, res) => {
+  const {
+    [req.params.id]: message,
+    ...otherMessages
+  } = messages;
+  messages = otherMessages;
+  
+  return res.send(message);
+});
+
+app.put('/messages/:id', (req, res) => {
+  messages[req.params.id].text = req.body.text;
+
+  return res.send(messages[req.params.id]);
 });
 
 // Set up app to listen
